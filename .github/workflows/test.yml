@@ -1,0 +1,63 @@
+name: Test
+
+on:
+  push:
+    paths:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/test.yml"
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: '0'
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
+          cache: true
+
+      - uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Install Go tools
+        run: |
+          cd /tmp
+          go install golang.org/x/tools/cmd/stringer@v0.2.0
+      - name: Go mod tidy
+        run: go mod tidy
+
+      - name: Regenerate code
+        run: go generate -v ./...
+
+      - name: Reformat code
+        run: go fmt ./...
+
+      - name: Check difference
+        run: git diff --color --exit-code .
+
+      - name: Go vet
+        run: go vet ./...
+
+      - name: Install gotestfmt
+        run: go install github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+
+      - name: Run tests
+        run: |
+          set -euo pipefail
+          go generate ./...
+          go test -json -v ./... 2>&1 | tee /tmp/gotest.log | gotestfmt 

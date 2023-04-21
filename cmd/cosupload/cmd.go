@@ -13,11 +13,14 @@ import (
 	"tccos-tools/exitcode"
 )
 
+var disableChecksum = false
+
 func Cmd() *cobra.Command {
 	var c cobra.Command
 	c.Use = "cosupload FILE... DIR"
 	c.Args = cobra.MinimumNArgs(2)
 	c.Run = run
+	c.Flags().BoolVarP(&disableChecksum, "no-checksum", "n", false, "disable checksum")
 	return &c
 }
 
@@ -40,7 +43,8 @@ func run(cmd *cobra.Command, args []string) {
 			targetPath = filepath.Join(target, file)
 		}
 		_, response, e := client.Object.Upload(ctx, targetPath, file, &cos.MultiUploadOptions{
-			ThreadPoolSize: 4,
+			ThreadPoolSize:  4,
+			DisableChecksum: disableChecksum,
 		})
 		if e != nil {
 			fmt.Fprintln(os.Stderr, e.Error())
